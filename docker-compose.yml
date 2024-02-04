@@ -1,0 +1,105 @@
+version: '3.9'
+services:
+  rabbitmq:
+    image: rabbitmq:3.12.12-management
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - 15672:15672
+      - 5672:5672
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    volumes:
+      - ./pg_data:/var/lib/postgresql/data/pgdata
+      - ./pg_scripts:/docker-entrypoint-initdb.d
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /tmp
+    restart: always
+    ports:
+      - 5432:5432
+
+  discovery:
+    build:
+      context: ./discovery
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - 8761:8761
+
+  config:
+    build:
+      context: ./config
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - discovery
+    ports:
+      - 8880:8880
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - discovery
+      - config
+    ports:
+      - 8881:8881
+
+  distribution:
+    build:
+      context: ./distribution
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - discovery
+      - config
+    ports:
+    - 8885:8885
+
+  auth:
+    build:
+      context: ./auth
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - discovery
+      - config
+      - postgres
+    ports:
+    - 8882:8882
+    environment:
+      POSTGRES_HOST: host.docker.internal
+
+  profile:
+    build:
+      context: ./profile
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - discovery
+      - config
+      - postgres
+    ports:
+    - 8883:8883
+    environment:
+      POSTGRES_HOST: host.docker.internal
+
+  logistic:
+    build:
+      context: ./logistic
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - discovery
+      - config
+      - postgres
+    ports:
+      - 8884:8884
+    environment:
+      POSTGRES_HOST: host.docker.internal
